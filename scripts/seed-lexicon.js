@@ -11,31 +11,12 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function fetchFlowerList() {
-  const flowers = [];
-  let continueToken = null;
-
-  do {
-    const url = new URL('https://en.wikipedia.org/w/api.php');
-    url.searchParams.set('action', 'query');
-    url.searchParams.set('list', 'categorymembers');
-    url.searchParams.set('cmtitle', 'Category:Flowers');
-    url.searchParams.set('cmlimit', '500');
-    url.searchParams.set('format', 'json');
-    url.searchParams.set('cmtype', 'page');
-    if (continueToken) url.searchParams.set('cmcontinue', continueToken);
-
-    const response = await fetch(url.toString());
-    const data = await response.json();
-    flowers.push(...data.query.categorymembers.map(m => m.title));
-    continueToken = data.continue?.cmcontinue ?? null;
-  } while (continueToken);
-
-  return flowers.filter(name =>
-    !name.includes('(disambiguation)') &&
-    !name.startsWith('List of') &&
-    !name.startsWith('Category:')
-  );
+function fetchFlowerList() {
+  const listPath = path.join(__dirname, '../assets/flower-list.txt');
+  return fs.readFileSync(listPath, 'utf8')
+    .split('\n')
+    .map(line => line.trim())
+    .filter(line => line.length > 0);
 }
 
 async function callClaude(flowerName) {
@@ -106,13 +87,17 @@ async function main() {
   const processedNames = new Set();
 
   if (fs.existsSync(PROGRESS_PATH)) {
-    results = JSON.parse(fs.readFileSync(PROGRESS_PATH, 'utf8'));
-    results.forEach(r => processedNames.add(r.common_name.toLowerCase()));
-    console.log(`Resuming: ${results.length} flowers already done`);
+    try {
+      results = JSON.parse(fs.readFileSync(PROGRESS_PATH, 'utf8'));
+      results.forEach(r => processedNames.add(r.common_name.toLowerCase()));
+      console.log(`Resuming: ${results.length} flowers already done`);
+    } catch {
+      console.log('Progress file corrupted, starting fresh.');
+      results = [];
+    }
   }
 
-  console.log('Fetching flower list from Wikipedia...');
-  const flowerNames = await fetchFlowerList();
+  const flowerNames = fetchFlowerList();
   const toProcess = flowerNames.filter(n => !processedNames.has(n.toLowerCase()));
   console.log(`${flowerNames.length} total, ${toProcess.length} remaining`);
 
