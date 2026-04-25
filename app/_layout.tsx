@@ -3,8 +3,11 @@ import { useEffect } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { AuthProvider, useAuth } from '../src/context/AuthContext';
 import { runMigrations } from '../src/db/migrations';
+import { seedLexicon } from '../src/db/seed';
 
 runMigrations();
+seedLexicon();
+
 
 function RootLayoutNav() {
   const { currentUser, isLoading } = useAuth();
