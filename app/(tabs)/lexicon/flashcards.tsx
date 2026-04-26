@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import { flowerRepository } from '../../../src/repositories/SqliteFlowerRepository';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { flowerRepository } from '../../../src/repositories/SupabaseFlowerRepository';
 import type { Flower } from '../../../src/repositories/FlowerRepository';
 
 function shuffle<T>(arr: T[]): T[] {
@@ -8,22 +8,26 @@ function shuffle<T>(arr: T[]): T[] {
 }
 
 export default function FlashcardsScreen() {
-  const [deck] = useState<Flower[]>(() => shuffle(flowerRepository.getAll()));
+  const [deck, setDeck] = useState<Flower[]>([]);
+  const [loading, setLoading] = useState(true);
   const [index, setIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
+
+  useEffect(() => {
+    flowerRepository.getAll()
+      .then(flowers => setDeck(shuffle(flowers)))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return <View className="flex-1 items-center justify-center"><ActivityIndicator /></View>;
+  }
 
   const flower = deck[index];
   const total = deck.length;
 
-  function next() {
-    setRevealed(false);
-    setIndex(i => (i + 1) % total);
-  }
-
-  function previous() {
-    setRevealed(false);
-    setIndex(i => (i - 1 + total) % total);
-  }
+  function next() { setRevealed(false); setIndex(i => (i + 1) % total); }
+  function previous() { setRevealed(false); setIndex(i => (i - 1 + total) % total); }
 
   if (!flower) {
     return (
@@ -39,27 +43,20 @@ export default function FlashcardsScreen() {
         <Text className="text-2xl font-bold text-gray-900">Flash Cards</Text>
         <Text className="text-sm text-gray-400 mt-1">{index + 1} of {total}</Text>
       </View>
-
       <ScrollView className="flex-1 px-4 py-6">
         <View className="bg-green-50 rounded-2xl p-6 mb-6">
           <Text className="text-sm font-semibold text-green-700 uppercase mb-3">What flower is this?</Text>
           <Text className="text-base text-gray-700 leading-relaxed">{flower.summary}</Text>
         </View>
-
         {!revealed ? (
-          <TouchableOpacity
-            className="bg-green-700 rounded-xl py-4 items-center mb-4"
-            onPress={() => setRevealed(true)}
-          >
+          <TouchableOpacity className="bg-green-700 rounded-xl py-4 items-center mb-4" onPress={() => setRevealed(true)}>
             <Text className="text-white font-semibold text-base">Reveal</Text>
           </TouchableOpacity>
         ) : (
           <View className="mb-4">
             <View className="border border-green-200 rounded-2xl p-6 mb-4">
               <Text className="text-3xl font-bold text-gray-900">{flower.common_name}</Text>
-              {flower.sci_name && (
-                <Text className="text-base italic text-gray-400 mt-1">{flower.sci_name}</Text>
-              )}
+              {flower.sci_name && <Text className="text-base italic text-gray-400 mt-1">{flower.sci_name}</Text>}
               {flower.mythology && (
                 <>
                   <Text className="text-sm font-semibold text-gray-500 uppercase mt-4 mb-2">Mythology</Text>
@@ -75,18 +72,11 @@ export default function FlashcardsScreen() {
             </View>
           </View>
         )}
-
         <View className="flex-row gap-3">
-          <TouchableOpacity
-            className="flex-1 border border-gray-200 rounded-xl py-4 items-center"
-            onPress={previous}
-          >
+          <TouchableOpacity className="flex-1 border border-gray-200 rounded-xl py-4 items-center" onPress={previous}>
             <Text className="text-gray-600 font-medium">← Previous</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            className="flex-1 border border-gray-200 rounded-xl py-4 items-center"
-            onPress={next}
-          >
+          <TouchableOpacity className="flex-1 border border-gray-200 rounded-xl py-4 items-center" onPress={next}>
             <Text className="text-gray-600 font-medium">Next →</Text>
           </TouchableOpacity>
         </View>

@@ -1,7 +1,8 @@
-import { useState } from 'react';
-import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { flowerRepository } from '../../../src/repositories/SqliteFlowerRepository';
+import { flowerRepository } from '../../../src/repositories/SupabaseFlowerRepository';
+import type { Flower } from '../../../src/repositories/FlowerRepository';
 
 const TABS = ['Summary', 'Mythology', 'History', 'Colors'] as const;
 type Tab = typeof TABS[number];
@@ -9,9 +10,17 @@ type Tab = typeof TABS[number];
 export default function FlowerDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const [flower, setFlower] = useState<Flower | null>(null);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>('Summary');
 
-  const flower = flowerRepository.getById(id);
+  useEffect(() => {
+    if (id) flowerRepository.getById(id).then(setFlower).finally(() => setLoading(false));
+  }, [id]);
+
+  if (loading) {
+    return <View className="flex-1 items-center justify-center"><ActivityIndicator /></View>;
+  }
 
   if (!flower) {
     return (
@@ -27,12 +36,12 @@ export default function FlowerDetailScreen() {
 
   function renderContent() {
     switch (activeTab) {
-        case 'Summary':
-            return <Text className="text-base text-gray-700 leading-relaxed">{flower?.summary ?? 'No summary available.'}</Text>;
-        case 'Mythology':
-            return <Text className="text-base text-gray-700 leading-relaxed">{flower?.mythology ?? 'No mythology recorded.'}</Text>;
-        case 'History':
-            return <Text className="text-base text-gray-700 leading-relaxed">{flower?.history ?? 'No history recorded.'}</Text>;
+      case 'Summary':
+        return <Text className="text-base text-gray-700 leading-relaxed">{flower?.summary ?? 'No summary available.'}</Text>;
+      case 'Mythology':
+        return <Text className="text-base text-gray-700 leading-relaxed">{flower?.mythology ?? 'No mythology recorded.'}</Text>;
+      case 'History':
+        return <Text className="text-base text-gray-700 leading-relaxed">{flower?.history ?? 'No history recorded.'}</Text>;
       case 'Colors':
         return (
           <View className="gap-4">
@@ -61,7 +70,6 @@ export default function FlowerDetailScreen() {
           <Text className="text-base italic text-gray-400 mt-1">{flower.sci_name}</Text>
         )}
       </View>
-
       <View className="flex-row border-b border-gray-100">
         {TABS.map(tab => (
           <TouchableOpacity
@@ -75,7 +83,6 @@ export default function FlowerDetailScreen() {
           </TouchableOpacity>
         ))}
       </View>
-
       <ScrollView className="flex-1 px-4 py-4">
         {renderContent()}
       </ScrollView>

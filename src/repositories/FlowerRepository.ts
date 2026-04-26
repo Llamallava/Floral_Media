@@ -11,8 +11,8 @@ export type Flower = {
 };
 
 export interface FlowerRepository {
-  getAll(): Flower[];
-  getById(id: string): Flower | null;
-  search(query: string): Flower[];
-  save(flower: Omit<Flower, 'id' | 'created_at'>): Flower;
+  getAll(): Promise<Flower[]>;
+  getById(id: string): Promise<Flower | null>;
+  search(query: string): Promise<Flower[]>;
+  save(flower: Omit<Flower, 'id' | 'created_at'>): Promise<Flower>;
 }

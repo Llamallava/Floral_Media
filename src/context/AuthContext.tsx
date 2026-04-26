@@ -17,10 +17,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    AuthService.getStoredSession().then(user => {
+    const unsubscribe = AuthService.subscribeToAuthChanges(user => {
       setCurrentUser(user);
       setIsLoading(false);
     });
+    return unsubscribe;
   }, []);
 
   async function login(email: string, password: string) {

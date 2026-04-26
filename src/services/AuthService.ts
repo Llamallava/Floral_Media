@@ -1,8 +1,4 @@
-import * as Crypto from 'expo-crypto';
-import * as SecureStore from 'expo-secure-store';
-import db from '../db/client';
-
-const SESSION_KEY = 'current_user_id';
+import { supabase } from '../db/supabaseClient';
 
 export type User = {
   id: string;
@@ -10,62 +6,47 @@ export type User = {
   displayName: string;
 };
 
-async function hashPassword(salt: string, password: string): Promise<string> {
-  return Crypto.digestStringAsync(
-    Crypto.CryptoDigestAlgorithm.SHA256,
-    salt + password
-  );
-}
-
 export async function register(email: string, displayName: string, password: string): Promise<User> {
-  const existing = db.getFirstSync('SELECT id FROM users WHERE email = ?', [email.toLowerCase()]);
-  if (existing) throw new Error('An account with this email already exists.');
-
-  const id = Crypto.randomUUID();
-  const salt = Crypto.randomUUID();
-  const hash = await hashPassword(salt, password);
-  const now = new Date().toISOString();
-
-  db.runSync(
-    'INSERT INTO users (id, email, display_name, password_hash, created_at) VALUES (?, ?, ?, ?, ?)',
-    [id, email.toLowerCase(), displayName, `${salt}:${hash}`, now]
-  );
-
-  await SecureStore.setItemAsync(SESSION_KEY, id);
-  return { id, email: email.toLowerCase(), displayName };
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: { data: { display_name: displayName } },
+  });
+  if (error) throw error;
+  if (!data.user) throw new Error('Registration failed.');
+  return { id: data.user.id, email: data.user.email!, displayName };
 }
 
 export async function login(email: string, password: string): Promise<User> {
-  const user = db.getFirstSync<{
-    id: string;
-    email: string;
-    display_name: string;
-    password_hash: string;
-  }>('SELECT * FROM users WHERE email = ?', [email.toLowerCase()]);
-
-  if (!user) throw new Error('No account found with this email.');
-
-  const [salt, storedHash] = user.password_hash.split(':');
-  const attemptHash = await hashPassword(salt, password);
-  if (attemptHash !== storedHash) throw new Error('Incorrect password.');
-
-  await SecureStore.setItemAsync(SESSION_KEY, user.id);
-  return { id: user.id, email: user.email, displayName: user.display_name };
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) throw error;
+  if (!data.user) throw new Error('Login failed.');
+  return {
+    id: data.user.id,
+    email: data.user.email!,
+    displayName: data.user.user_metadata?.display_name ?? '',
+  };
 }
 
 export async function logout(): Promise<void> {
-  await SecureStore.deleteItemAsync(SESSION_KEY);
+  await supabase.auth.signOut();
 }
 
 export async function getStoredSession(): Promise<User | null> {
-  const userId = await SecureStore.getItemAsync(SESSION_KEY);
-  if (!userId) return null;
-
-  const user = db.getFirstSync<{ id: string; email: string; display_name: string }>(
-    'SELECT id, email, display_name FROM users WHERE id = ?',
-    [userId]
-  );
-
+  const { data } = await supabase.auth.getSession();
+  const user = data.session?.user;
   if (!user) return null;
-  return { id: user.id, email: user.email, displayName: user.display_name };
+  return {
+    id: user.id,
+    email: user.email!,
+    displayName: user.user_metadata?.display_name ?? '',
+  };
+}
+
+export function subscribeToAuthChanges(callback: (user: User | null) => void): () => void {
+  const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const u = session?.user;
+    callback(u ? { id: u.id, email: u.email!, displayName: u.user_metadata?.display_name ?? '' } : null);
+  });
+  return () => subscription.unsubscribe();
 }

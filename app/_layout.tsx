@@ -2,12 +2,6 @@ import '../global.css';
 import { useEffect } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { AuthProvider, useAuth } from '../src/context/AuthContext';
-import { runMigrations } from '../src/db/migrations';
-import { seedLexicon } from '../src/db/seed';
-
-runMigrations();
-seedLexicon();
-
 
 function RootLayoutNav() {
   const { currentUser, isLoading } = useAuth();
@@ -16,14 +10,9 @@ function RootLayoutNav() {
 
   useEffect(() => {
     if (isLoading) return;
-
     const inAuthGroup = segments[0] === '(auth)';
-
-    if (!currentUser && !inAuthGroup) {
-      router.replace('/(auth)/login');
-    } else if (currentUser && inAuthGroup) {
-      router.replace('/(tabs)/lexicon');
-    }
+    if (!currentUser && !inAuthGroup) router.replace('/(auth)/login');
+    else if (currentUser && inAuthGroup) router.replace('/(tabs)/lexicon');
   }, [currentUser, isLoading, segments]);
 
   return (
