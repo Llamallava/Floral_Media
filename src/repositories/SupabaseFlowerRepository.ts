@@ -54,6 +54,16 @@ export class SupabaseFlowerRepository implements FlowerRepository {
     if (error) throw error;
     return normalize(data);
   }
+
+  async getByScientificName(sciName: string): Promise<Flower | null> {
+    const { data, error } = await supabase
+      .from('flowers')
+      .select('*')
+      .ilike('sci_name', sciName)
+      .maybeSingle();
+    if (error || !data) return null;
+    return normalize(data);
+  }
 }
 
 export const flowerRepository = new SupabaseFlowerRepository();

@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import { randomUUID } from 'expo-crypto';
 import { supabase } from '../../../src/db/supabaseClient';
 import { identifyPlant } from '../../../src/services/PlantIdService';
-import { detectColor, generateFlowerLore } from '../../../src/services/ClaudeService';
+import { generateFlowerLore } from '../../../src/services/ClaudeService';
 import { flowerRepository } from '../../../src/repositories/SupabaseFlowerRepository';
 import { gardenRepository } from '../../../src/repositories/SupabaseGardenRepository';
 import { useAuth } from '../../../src/context/AuthContext';
@@ -47,56 +47,42 @@ export default function CameraScreen() {
 
     try {
       setStatus('Capturing...');
-      const photo = await cameraRef.current.takePictureAsync({ base64: true });
+      const photo = await cameraRef.current.takePictureAsync({ base64: true, quality: 0.3 });
       if (!photo?.uri || !photo.base64) throw new Error('Photo capture failed.');
 
       const entryId = randomUUID();
       const storagePath = `${currentUser.id}/${entryId}.jpg`;
 
-      // Upload photo to Supabase Storage
       setStatus('Uploading photo...');
-      const fileRes = await fetch(photo.uri);
-      const blob = await fileRes.blob();
+      const bytes = Uint8Array.from(atob(photo.base64), c => c.charCodeAt(0));
       const { error: uploadError } = await supabase.storage
         .from('garden-photos')
-        .upload(storagePath, blob, { contentType: 'image/jpeg' });
+        .upload(storagePath, bytes, { contentType: 'image/jpeg' });
       if (uploadError) throw uploadError;
 
-      // Identify species via Plant.id Edge Function
       setStatus('Identifying flower...');
       const plantId = await identifyPlant(photo.base64);
+      const flowerName = plantId.commonNames[0] ?? plantId.speciesName;
 
-      // Check Lexicon for existing entry
       setStatus('Checking Lexicon...');
-      const matches = await flowerRepository.search(plantId.speciesName);
-      const cached = matches.find(
-        f => f.sci_name?.toLowerCase() === plantId.speciesName.toLowerCase()
-      );
+      const cached = await flowerRepository.getByScientificName(plantId.speciesName);
 
       let flowerId: string;
-      let detectedColor: string;
-
       if (cached) {
-        // Cache hit — color only
-        setStatus('Detecting color...');
-        detectedColor = await detectColor(photo.base64);
         flowerId = cached.id;
       } else {
-        // Cache miss — full lore + DB write happens inside Edge Function
         setStatus('Generating lore...');
-        const lore = await generateFlowerLore(photo.base64, plantId);
+        const lore = await generateFlowerLore(flowerName);
         flowerId = lore.flowerId;
-        detectedColor = lore.detectedColor;
       }
 
-      // Save garden entry
       setStatus('Saving...');
       const entry = await gardenRepository.save({
         id: entryId,
         user_id: currentUser.id,
         flower_id: flowerId,
         photo_path: storagePath,
-        detected_color: detectedColor,
+        detected_color: null,
         confidence: plantId.confidence,
         latitude: null,
         longitude: null,
@@ -114,7 +100,11 @@ export default function CameraScreen() {
 
   return (
     <View className="flex-1 bg-black">
-      <CameraView ref={cameraRef} className="flex-1" facing="back" />
+<CameraView
+  ref={cameraRef}
+  style={{ flex: 1, width: '100%' }}
+  facing="back"
+/>
 
       {processing ? (
         <View className="absolute inset-0 bg-black/60 items-center justify-center">

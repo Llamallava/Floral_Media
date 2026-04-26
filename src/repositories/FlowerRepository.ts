@@ -13,6 +13,7 @@ export type Flower = {
 export interface FlowerRepository {
   getAll(): Promise<Flower[]>;
   getById(id: string): Promise<Flower | null>;
+  getByScientificName(sciName: string): Promise<Flower | null>;
   search(query: string): Promise<Flower[]>;
   save(flower: Omit<Flower, 'id' | 'created_at'>): Promise<Flower>;
 }

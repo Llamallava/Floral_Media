@@ -20,6 +20,7 @@ export default function GardenEntryScreen() {
   const router = useRouter();
   const [entry, setEntry] = useState<GardenEntry | null>(null);
   const [flower, setFlower] = useState<Flower | null>(null);
+  const [genericFlower, setGenericFlower] = useState<Flower | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>('Summary');
 
@@ -27,7 +28,17 @@ export default function GardenEntryScreen() {
     if (!id) return;
     gardenRepository.getById(id).then(async e => {
       setEntry(e);
-      if (e?.flower_id) setFlower(await flowerRepository.getById(e.flower_id));
+      if (e?.flower_id) {
+        const f = await flowerRepository.getById(e.flower_id);
+        setFlower(f);
+        if (f?.sci_name) {
+          const genus = f.sci_name.split(' ')[0];
+          if (genus !== f.sci_name) {
+            const generic = await flowerRepository.getByScientificName(genus);
+            setGenericFlower(generic);
+          }
+        }
+      }
       setLoading(false);
     });
   }, [id]);
@@ -114,6 +125,21 @@ export default function GardenEntryScreen() {
           </Text>
         )}
       </View>
+
+      {genericFlower && (
+        <TouchableOpacity
+          className="mx-4 my-3 bg-green-50 rounded-xl p-4"
+          onPress={() => router.push(`/(tabs)/lexicon/${genericFlower.id}`)}
+        >
+          <Text className="text-xs font-semibold text-green-700 uppercase mb-1">
+            Part of the {genericFlower.common_name} family
+          </Text>
+          <Text className="text-sm text-gray-600 leading-relaxed" numberOfLines={2}>
+            {genericFlower.summary}
+          </Text>
+          <Text className="text-xs text-green-700 mt-2">View in Lexicon →</Text>
+        </TouchableOpacity>
+      )}
 
       <View className="flex-row border-b border-gray-100">
         {TABS.map(tab => (
