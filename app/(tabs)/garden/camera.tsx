@@ -65,7 +65,13 @@ export default function CameraScreen() {
       const flowerName = plantId.commonNames[0] ?? plantId.speciesName;
 
       setStatus('Checking Lexicon...');
-      const cached = await flowerRepository.getByScientificName(plantId.speciesName);
+      let cached = await flowerRepository.getByScientificName(plantId.speciesName);
+      if (!cached) {
+        const results = await flowerRepository.search(flowerName);
+        cached = results.find(
+          f => f.common_name.toLowerCase() === flowerName.toLowerCase()
+        ) ?? null;
+      }
 
       let flowerId: string;
       if (cached) {
@@ -89,7 +95,7 @@ export default function CameraScreen() {
         captured_at: new Date().toISOString(),
       });
 
-      router.replace(`/(tabs)/garden/${entry.id}`);
+      router.replace({ pathname: '/(tabs)/garden/[id]', params: { id: entry.id } });
 
     } catch (err: any) {
       Alert.alert('Something went wrong', err.message ?? 'Unknown error');

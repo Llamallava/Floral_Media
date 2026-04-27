@@ -40,7 +40,7 @@ export default function GardenEntryScreen() {
         }
       }
       setLoading(false);
-    });
+    }).catch(() => setLoading(false));
   }, [id]);
 
   if (loading) {
