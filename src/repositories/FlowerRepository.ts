@@ -7,6 +7,7 @@ export type Flower = {
   history: string | null;
   color_meanings: string | null;
   image_url: string | null;
+  image_urls: string[] | null;
   source: string;
   created_at: string;
 };

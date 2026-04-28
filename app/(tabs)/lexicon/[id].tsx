@@ -10,10 +10,11 @@ type Tab = typeof TABS[number];
 export default function FlowerDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { height } = useWindowDimensions();
+  const { height, width } = useWindowDimensions();
   const [flower, setFlower] = useState<Flower | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>('Summary');
+  const [imageIndex, setImageIndex] = useState(0);
 
   useEffect(() => {
     if (id) flowerRepository.getById(id).then(setFlower).finally(() => setLoading(false));
@@ -34,6 +35,12 @@ export default function FlowerDetailScreen() {
   const colorMeanings: Record<string, string> = flower.color_meanings
     ? JSON.parse(flower.color_meanings)
     : {};
+
+  const images = flower.image_urls?.length
+    ? flower.image_urls
+    : flower.image_url
+    ? [flower.image_url]
+    : [];
 
   function renderContent() {
     switch (activeTab) {
@@ -62,17 +69,44 @@ export default function FlowerDetailScreen() {
 
   return (
     <View className="flex-1 bg-white">
-      {/* Image — top third of screen */}
+      {/* Image gallery — top third of screen */}
       <View style={{ height: height / 3 }}>
-        {flower.image_url ? (
-          <Image
-            source={{ uri: flower.image_url }}
-            style={{ width: '100%', height: '100%' }}
-            resizeMode="cover"
-          />
+        {images.length > 0 ? (
+          <ScrollView
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onMomentumScrollEnd={e =>
+              setImageIndex(Math.round(e.nativeEvent.contentOffset.x / width))
+            }
+            style={{ width, height: height / 3 }}
+          >
+            {images.map((uri, i) => (
+              <Image
+                key={i}
+                source={{ uri }}
+                style={{ width, height: height / 3 }}
+                resizeMode="cover"
+              />
+            ))}
+          </ScrollView>
         ) : (
           <View className="w-full h-full bg-green-50" />
         )}
+
+        {/* Dot indicators */}
+        {images.length > 1 && (
+          <View className="absolute bottom-2 left-0 right-0 flex-row justify-center gap-1">
+            {images.map((_, i) => (
+              <View
+                key={i}
+                style={{ width: 6, height: 6, borderRadius: 3 }}
+                className={i === imageIndex ? 'bg-white' : 'bg-white/50'}
+              />
+            ))}
+          </View>
+        )}
+
         <TouchableOpacity
           onPress={() => router.back()}
           className="absolute top-12 left-4 bg-white/80 rounded-full px-3 py-1"
