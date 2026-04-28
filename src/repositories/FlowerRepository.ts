@@ -6,6 +6,7 @@ export type Flower = {
   mythology: string | null;
   history: string | null;
   color_meanings: string | null;
+  image_url: string | null;
   source: string;
   created_at: string;
 };
