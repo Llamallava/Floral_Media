@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet } from 'react-native';
 
-export default function LexiconScreen() {
+export default function BouquetScreen() {
   return (
     <View style={styles.container}>
       <Text>Bouquet</Text>
